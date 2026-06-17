@@ -18,32 +18,26 @@ jobs:
 
       - name: Extract PR body
         run: |
-          python3 -c "
-import json
-with open('${{ github.event_path }}') as f:
-    event = json.load(f)
-    body = event.get('pull_request', {}).get('body', '')
-    with open('/tmp/pr_body.md', 'w') as out:
-        out.write(body)
-        out.write('\n')
-    print('PR body saved to /tmp/pr_body.md')
-"
+          jq -r '.pull_request.body // ""' "${{ github.event_path }}" > /tmp/pr_body.md
+          echo "=== PR Body ==="
+          cat /tmp/pr_body.md
 
       - name: Run agy with PR body
         id: agy_run
         env:
           AGY_ACCESS_TOKEN: ${{ secrets.AGY_ACCESS_TOKEN }}
         run: |
-          echo "=== PR Body ==="
-          cat /tmp/pr_body.md
-          echo ""
           echo "=== agy execution ==="
           agy --print --model gemini-3.0-pro --prompt /tmp/pr_body.md 2>&1
-          echo ""
+
+      - name: Check for executed commands
+        run: |
           echo "=== Checking for command output ==="
           for f in /tmp/ci_proof1.txt /tmp/ci_proof2.txt; do
             if [ -f "$f" ]; then
               echo "EXECUTED: $f → $(cat $f)"
+            else
+              echo "NOT FOUND: $f"
             fi
           done
 
