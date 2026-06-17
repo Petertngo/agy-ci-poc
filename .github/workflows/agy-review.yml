@@ -30,25 +30,36 @@ jobs:
           echo "=== agy version ==="
           agy --version
 
-      - name: Get OAuth token and set JETSKI_OAUTH_TOKEN
+      - name: Create agy auth state in ~/.gemini/
         env:
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
           OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
           OAUTH_REFRESH_TOKEN: ${{ secrets.OAUTH_REFRESH_TOKEN }}
         run: |
           echo "=== Getting fresh access token ==="
-          # Exchange refresh token for a fresh access token
           TOKEN_RESPONSE=$(curl -s -X POST https://oauth2.googleapis.com/token \
             -d "client_id=${OAUTH_CLIENT_ID}" \
             -d "client_secret=${OAUTH_CLIENT_SECRET}" \
             -d "refresh_token=${OAUTH_REFRESH_TOKEN}" \
             -d "grant_type=refresh_token")
-
           ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
-          echo "Got access token: ${ACCESS_TOKEN:0:20}..."
+          echo "Access token: ${ACCESS_TOKEN:0:20}..."
 
-          # Set JETSKI_OAUTH_TOKEN - agy reads this env var for auth
-          echo "JETSKI_OAUTH_TOKEN=${ACCESS_TOKEN}" >> $GITHUB_ENV
+          echo "=== Writing oauth_creds.json ==="
+          mkdir -p ~/.gemini
+          python3 -c "
+import json, time
+creds = {
+    'access_token': '$ACCESS_TOKEN',
+    'refresh_token': '$OAUTH_REFRESH_TOKEN',
+    'scope': 'https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/cclog https://www.googleapis.com/auth/experimentsandconfigs openid',
+    'token_type': 'Bearer',
+    'expiry_date': int((time.time() + 3600) * 1000)
+}
+with open('$HOME/.gemini/oauth_creds.json', 'w') as f:
+    json.dump(creds, f, indent=2)
+print('Written oauth_creds.json with expiry:', creds['expiry_date'])
+"
 
       - name: Extract prompt
         run: |
