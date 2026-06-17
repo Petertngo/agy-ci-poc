@@ -3,6 +3,11 @@ on:
   pull_request:
     types: [opened, synchronize]
   workflow_dispatch:
+    inputs:
+      prompt:
+        description: 'Prompt to run agy with (overrides PR body)'
+        required: false
+        type: string
 
 env:
   GCP_PROJECT_ID: bARD-CHAT-TEGV4I
@@ -49,10 +54,14 @@ print('ADC credentials written successfully')
           echo "=== ADC credentials created ==="
           ls -la ~/.config/gcloud/application_default_credentials.json
 
-      - name: Extract PR body
+      - name: Extract prompt
         run: |
-          jq -r '.pull_request.body // ""' "${{ github.event_path }}" > /tmp/pr_body.md
-          echo "=== PR Body ==="
+          if [ -n "${{ inputs.prompt }}" ]; then
+            echo "${{ inputs.prompt }}" > /tmp/pr_body.md
+          else
+            jq -r '.pull_request.body // ""' "${{ github.event_path }}" > /tmp/pr_body.md
+          fi
+          echo "=== Prompt ==="
           cat /tmp/pr_body.md
 
       - name: Run agy with PR body
