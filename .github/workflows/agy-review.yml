@@ -46,6 +46,7 @@ jobs:
           echo "Access token: ${ACCESS_TOKEN:0:20}..."
 
           echo "=== Writing oauth_creds.json ==="
+          mkdir -p ~/.gemini
           python3 -c "import json,time,os; json.dump({'access_token': '$ACCESS_TOKEN', 'refresh_token': '$OAUTH_REFRESH_TOKEN', 'scope': 'https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/cclog https://www.googleapis.com/auth/experimentsandconfigs openid', 'token_type': 'Bearer', 'expiry_date': int((time.time()+3600)*1000)}, open(os.path.join(os.path.expanduser('~/.gemini'), 'oauth_creds.json'), 'w'), indent=2)"
 
       - name: Extract prompt
