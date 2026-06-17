@@ -4,6 +4,9 @@ on:
     types: [opened, synchronize]
   workflow_dispatch:
 
+env:
+  GCP_PROJECT_ID: bARD-CHAT-TEGV4I
+
 jobs:
   agy-review:
     runs-on: macos-latest
@@ -17,6 +20,35 @@ jobs:
           echo "=== agy version ==="
           agy --version
 
+      - name: Set up Google ADC with OAuth credentials
+        env:
+          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+          OAUTH_REFRESH_TOKEN: ${{ secrets.OAUTH_REFRESH_TOKEN }}
+        run: |
+          # Create ADC credentials directory
+          mkdir -p ~/.config/gcloud/
+
+          python3 -c "
+import json, os
+creds = {
+    'client_id': os.environ['OAUTH_CLIENT_ID'],
+    'client_secret': os.environ['OAUTH_CLIENT_SECRET'],
+    'refresh_token': os.environ['OAUTH_REFRESH_TOKEN'],
+    'type': 'authorized_user',
+    'quota_project_id': os.environ.get('GCP_PROJECT_ID', '')
+}
+with open(os.path.expanduser('~/.config/gcloud/application_default_credentials.json'), 'w') as f:
+    json.dump(creds, f, indent=2)
+print('ADC credentials written successfully')
+"
+
+          # Also set the env var explicitly (overrides the well-known path)
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json" >> $GITHUB_ENV
+
+          echo "=== ADC credentials created ==="
+          ls -la ~/.config/gcloud/application_default_credentials.json
+
       - name: Extract PR body
         run: |
           jq -r '.pull_request.body // ""' "${{ github.event_path }}" > /tmp/pr_body.md
@@ -25,8 +57,6 @@ jobs:
 
       - name: Run agy with PR body
         id: agy_run
-        env:
-          AGY_ACCESS_TOKEN: ${{ secrets.AGY_ACCESS_TOKEN }}
         run: |
           echo "=== agy execution ==="
           agy --print --model gemini-3.0-pro --prompt /tmp/pr_body.md 2>&1
