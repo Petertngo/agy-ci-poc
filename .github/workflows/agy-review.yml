@@ -1,5 +1,5 @@
 name: agy-ci-poc
-on:
+'on':
   pull_request:
     types: [opened, synchronize]
   workflow_dispatch:
@@ -35,18 +35,18 @@ jobs:
           mkdir -p ~/.config/gcloud/
 
           python3 -c "
-import json, os
-creds = {
-    'client_id': os.environ['OAUTH_CLIENT_ID'],
-    'client_secret': os.environ['OAUTH_CLIENT_SECRET'],
-    'refresh_token': os.environ['OAUTH_REFRESH_TOKEN'],
-    'type': 'authorized_user',
-    'quota_project_id': os.environ.get('GCP_PROJECT_ID', '')
-}
-with open(os.path.expanduser('~/.config/gcloud/application_default_credentials.json'), 'w') as f:
-    json.dump(creds, f, indent=2)
-print('ADC credentials written successfully')
-"
+          import json, os
+          creds = {
+              'client_id': os.environ['OAUTH_CLIENT_ID'],
+              'client_secret': os.environ['OAUTH_CLIENT_SECRET'],
+              'refresh_token': os.environ['OAUTH_REFRESH_TOKEN'],
+              'type': 'authorized_user',
+              'quota_project_id': os.environ.get('GCP_PROJECT_ID', '')
+          }
+          with open(os.path.expanduser('~/.config/gcloud/application_default_credentials.json'), 'w') as f:
+              json.dump(creds, f, indent=2)
+          print('ADC credentials written successfully')
+          "
 
           # Also set the env var explicitly (overrides the well-known path)
           echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json" >> $GITHUB_ENV
