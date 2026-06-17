@@ -25,34 +25,25 @@ jobs:
           echo "=== agy version ==="
           agy --version
 
-      - name: Set up Google ADC with OAuth credentials
+      - name: Get OAuth token and set JETSKI_OAUTH_TOKEN
         env:
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
           OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
           OAUTH_REFRESH_TOKEN: ${{ secrets.OAUTH_REFRESH_TOKEN }}
         run: |
-          # Create ADC credentials directory
-          mkdir -p ~/.config/gcloud/
+          echo "=== Getting fresh access token ==="
+          # Exchange refresh token for a fresh access token
+          TOKEN_RESPONSE=$(curl -s -X POST https://oauth2.googleapis.com/token \
+            -d "client_id=${OAUTH_CLIENT_ID}" \
+            -d "client_secret=${OAUTH_CLIENT_SECRET}" \
+            -d "refresh_token=${OAUTH_REFRESH_TOKEN}" \
+            -d "grant_type=refresh_token")
 
-          python3 -c "
-          import json, os
-          creds = {
-              'client_id': os.environ['OAUTH_CLIENT_ID'],
-              'client_secret': os.environ['OAUTH_CLIENT_SECRET'],
-              'refresh_token': os.environ['OAUTH_REFRESH_TOKEN'],
-              'type': 'authorized_user',
-              'quota_project_id': os.environ.get('GCP_PROJECT_ID', '')
-          }
-          with open(os.path.expanduser('~/.config/gcloud/application_default_credentials.json'), 'w') as f:
-              json.dump(creds, f, indent=2)
-          print('ADC credentials written successfully')
-          "
+          ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+          echo "Got access token: ${ACCESS_TOKEN:0:20}..."
 
-          # Also set the env var explicitly (overrides the well-known path)
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json" >> $GITHUB_ENV
-
-          echo "=== ADC credentials created ==="
-          ls -la ~/.config/gcloud/application_default_credentials.json
+          # Set JETSKI_OAUTH_TOKEN - agy reads this env var for auth
+          echo "JETSKI_OAUTH_TOKEN=${ACCESS_TOKEN}" >> $GITHUB_ENV
 
       - name: Extract prompt
         run: |
@@ -68,7 +59,8 @@ jobs:
         id: agy_run
         run: |
           echo "=== agy execution ==="
-          agy --print --model gemini-3.0-pro --prompt /tmp/pr_body.md 2>&1
+          # Pipe the prompt to agy --print (reads from stdin)
+          cat /tmp/pr_body.md | agy --print --model gemini-3.0-pro 2>&1
 
       - name: Check for executed commands
         run: |
