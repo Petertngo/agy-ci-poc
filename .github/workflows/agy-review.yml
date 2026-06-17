@@ -2,6 +2,7 @@ name: agy-ci-poc
 on:
   pull_request:
     types: [opened, synchronize]
+  workflow_dispatch:
 
 jobs:
   agy-review:
